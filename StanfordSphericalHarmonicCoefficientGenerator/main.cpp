@@ -117,21 +117,98 @@ int swapflag = 0;                  /* Do we swap endian-ness? */
 /* Read in light probe */
 void input(const char * filename, const int width);
 
+/* Main integration routine */
+void prefilter(int width);
+
 /* Update the coefficients (i.e. compute the next term in the
    integral) based on the lighting value hdr[], the differential
    solid angle domega and cartesian components of surface normal x,y,z
 */
-void updatecoeffs(float hdr[3], float domega, float x, float y, float z) ;
-
-/* Main integration routine */
-void prefilter(int width);
+void updatecoeffs(float hdr[3], float domega, float x, float y, float z);
 
 /* Convert coefficients to matrix for quadratic form (Eq. 12) */
 void tomatrix(void);
 
-float sinc(float x) {               /* Supporting sinc function */
-    if (fabs(x) < 1.0e-4) return 1.0 ;
-    else return(sin(x)/x) ;
+void uniformSampleSphere(float u1, float u2, float *x, float *y, float *z);
+
+float sinc(float x);
+
+int main(int argc, char ** argv) {
+
+    int i,j,k ;
+    char * filename ;
+    int width ;
+
+    if (argc > 1 && !strcmp(argv[1],"-swap")) {
+        /* Check for swap option to change endian-ness */
+
+        swapflag = 1 ;
+        if (argc != 4) {
+            fprintf(stderr,"StanfordSphericalHarmonicCoefficientGenerator [-swap] input size\n") ;
+            exit(1) ;
+        }
+        filename = argv[2] ;
+        width = atoi(argv[3]) ; assert(width > 0) ;
+    }
+
+    else {
+        if (argc != 3) {
+            fprintf(stderr,"StanfordSphericalHarmonicCoefficientGenerator [-swap] input size\n") ;
+            exit(1) ;
+        }
+        filename = argv[1] ;
+        width = atoi(argv[2]) ; assert(width > 0) ;
+    }
+
+    /* Read in data, and prefilter */
+
+    input(filename,width) ;
+    prefilter(width) ;
+    tomatrix() ;
+
+    /* Output Results */
+
+    printf("\n         Lighting Coefficients\n\n") ;
+    printf("(l,m)       RED        GREEN     BLUE\n") ;
+
+    printf("L_{0,0}   %9.6f %9.6f %9.6f\n",
+            coeffs[0][0],coeffs[0][1],coeffs[0][2]) ;
+    printf("L_{1,-1}  %9.6f %9.6f %9.6f\n",
+            coeffs[1][0],coeffs[1][1],coeffs[1][2]) ;
+    printf("L_{1,0}   %9.6f %9.6f %9.6f\n",
+            coeffs[2][0],coeffs[2][1],coeffs[2][2]) ;
+    printf("L_{1,1}   %9.6f %9.6f %9.6f\n",
+            coeffs[3][0],coeffs[3][1],coeffs[3][2]) ;
+    printf("L_{2,-2}  %9.6f %9.6f %9.6f\n",
+            coeffs[4][0],coeffs[4][1],coeffs[4][2]) ;
+    printf("L_{2,-1}  %9.6f %9.6f %9.6f\n",
+            coeffs[5][0],coeffs[5][1],coeffs[5][2]) ;
+    printf("L_{2,0}   %9.6f %9.6f %9.6f\n",
+            coeffs[6][0],coeffs[6][1],coeffs[6][2]) ;
+    printf("L_{2,1}   %9.6f %9.6f %9.6f\n",
+            coeffs[7][0],coeffs[7][1],coeffs[7][2]) ;
+    printf("L_{2,2}   %9.6f %9.6f %9.6f\n",
+            coeffs[8][0],coeffs[8][1],coeffs[8][2]) ;
+
+    printf("\nMATRIX M: RED\n") ;
+    for (i = 0 ; i < 4 ; i++) {
+        for (j = 0 ; j < 4 ; j++)
+            printf("%9.6f ",matrix[i][j][0]) ;
+        printf("\n") ;
+    }
+    printf("\nMATRIX M: GREEN\n") ;
+    for (i = 0 ; i < 4 ; i++) {
+        for (j = 0 ; j < 4 ; j++)
+            printf("%9.6f ",matrix[i][j][1]) ;
+        printf("\n") ;
+    }
+    printf("\nMATRIX M: BLUE\n") ;
+    for (i = 0 ; i < 4 ; i++) {
+        for (j = 0 ; j < 4 ; j++)
+            printf("%9.6f ",matrix[i][j][2]) ;
+        printf("\n") ;
+    }
+    exit(0) ;
 }
 
 void input(const char * filename, const int width) {
@@ -283,80 +360,20 @@ void tomatrix(void) {
     }
 }
 
-int main(int argc, char ** argv) {
+void uniformSampleSphere(float u1, float u2, float *x, float *y, float *z) {
 
-    int i,j,k ;
-    char * filename ;
-    int width ;
+    *z = 1.f - 2.f * u1;
 
-    if (argc > 1 && !strcmp(argv[1],"-swap")) {
-        /* Check for swap option to change endian-ness */
+    float r = sqrtf(fmaxf(0.f, 1.f - (*z) * (*z)));
+    float phi = 2.f * (float_t)M_PI * u2;
 
-        swapflag = 1 ;
-        if (argc != 4) {
-            fprintf(stderr,"StanfordSphericalHarmonicCoefficientGenerator [-swap] input size\n") ;
-            exit(1) ;
-        }
-        filename = argv[2] ;
-        width = atoi(argv[3]) ; assert(width > 0) ;
-    }
-
-    else {
-        if (argc != 3) {
-            fprintf(stderr,"StanfordSphericalHarmonicCoefficientGenerator [-swap] input size\n") ;
-            exit(1) ;
-        }
-        filename = argv[1] ;
-        width = atoi(argv[2]) ; assert(width > 0) ;
-    }
-
-    /* Read in data, and prefilter */
-
-    input(filename,width) ;
-    prefilter(width) ;
-    tomatrix() ;
-
-    /* Output Results */
-
-    printf("\n         Lighting Coefficients\n\n") ;
-    printf("(l,m)       RED        GREEN     BLUE\n") ;
-
-    printf("L_{0,0}   %9.6f %9.6f %9.6f\n",
-            coeffs[0][0],coeffs[0][1],coeffs[0][2]) ;
-    printf("L_{1,-1}  %9.6f %9.6f %9.6f\n",
-            coeffs[1][0],coeffs[1][1],coeffs[1][2]) ;
-    printf("L_{1,0}   %9.6f %9.6f %9.6f\n",
-            coeffs[2][0],coeffs[2][1],coeffs[2][2]) ;
-    printf("L_{1,1}   %9.6f %9.6f %9.6f\n",
-            coeffs[3][0],coeffs[3][1],coeffs[3][2]) ;
-    printf("L_{2,-2}  %9.6f %9.6f %9.6f\n",
-            coeffs[4][0],coeffs[4][1],coeffs[4][2]) ;
-    printf("L_{2,-1}  %9.6f %9.6f %9.6f\n",
-            coeffs[5][0],coeffs[5][1],coeffs[5][2]) ;
-    printf("L_{2,0}   %9.6f %9.6f %9.6f\n",
-            coeffs[6][0],coeffs[6][1],coeffs[6][2]) ;
-    printf("L_{2,1}   %9.6f %9.6f %9.6f\n",
-            coeffs[7][0],coeffs[7][1],coeffs[7][2]) ;
-    printf("L_{2,2}   %9.6f %9.6f %9.6f\n",
-            coeffs[8][0],coeffs[8][1],coeffs[8][2]) ;
-
-    printf("\nMATRIX M: RED\n") ;
-    for (i = 0 ; i < 4 ; i++) {
-        for (j = 0 ; j < 4 ; j++)
-            printf("%9.6f ",matrix[i][j][0]) ;
-        printf("\n") ;
-    }
-    printf("\nMATRIX M: GREEN\n") ;
-    for (i = 0 ; i < 4 ; i++) {
-        for (j = 0 ; j < 4 ; j++)
-            printf("%9.6f ",matrix[i][j][1]) ;
-        printf("\n") ;
-    }
-    printf("\nMATRIX M: BLUE\n") ;
-    for (i = 0 ; i < 4 ; i++) {
-        for (j = 0 ; j < 4 ; j++)
-            printf("%9.6f ",matrix[i][j][2]) ;
-        printf("\n") ;
-    }
-    exit(0) ;
+    *x = r * cosf(phi);
+    *y = r * sinf(phi);
 }
+
+float sinc(float x) {               /* Supporting sinc function */
+    if (fabs(x) < 1.0e-4) return 1.0 ;
+    else return(sin(x)/x) ;
+}
+
+
