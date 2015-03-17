@@ -114,10 +114,8 @@ float coeffs[9][3];                /* Spherical harmonic coefficients */
 float matrix[4][4][3];             /* Matrix for quadratic form */
 int swapflag = 0;                  /* Do we swap endian-ness? */
 
-/* Read in light probe */
 void input(const char * filename, const int width);
 
-/* Main integration routine */
 void prefilter(int width);
 
 /* Update the coefficients (i.e. compute the next term in the
@@ -128,8 +126,6 @@ void updatecoeffs(float hdr[3], float domega, float x, float y, float z);
 
 /* Convert coefficients to matrix for quadratic form (Eq. 12) */
 void tomatrix(void);
-
-void uniformSampleSphere(float u1, float u2, float *x, float *y, float *z);
 
 float sinc(float x);
 
@@ -162,8 +158,10 @@ int main(int argc, char ** argv) {
 
     /* Read in data, and prefilter */
 
-    input(filename,width) ;
-    prefilter(width) ;
+    input(filename,width);
+
+    prefilter(width);
+
     tomatrix() ;
 
     /* Output Results */
@@ -208,6 +206,7 @@ int main(int argc, char ** argv) {
             printf("%9.6f ",matrix[i][j][2]) ;
         printf("\n") ;
     }
+
     exit(0) ;
 }
 
@@ -358,17 +357,6 @@ void tomatrix(void) {
         matrix[3][2][col] = c2*coeffs[2][col] ; /* c2 L_{10}  */
         matrix[3][3][col] = c4*coeffs[0][col] - c5*coeffs[6][col] ; /* c4 L_{00} - c5 L_{20} */
     }
-}
-
-void uniformSampleSphere(float u1, float u2, float *x, float *y, float *z) {
-
-    *z = 1.f - 2.f * u1;
-
-    float r = sqrtf(fmaxf(0.f, 1.f - (*z) * (*z)));
-    float phi = 2.f * (float_t)M_PI * u2;
-
-    *x = r * cosf(phi);
-    *y = r * sinf(phi);
 }
 
 float sinc(float x) {               /* Supporting sinc function */
